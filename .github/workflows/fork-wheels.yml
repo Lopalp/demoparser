@@ -1,0 +1,70 @@
+name: Fork wheels (gil-release)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - gil-release-parse
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: ./src/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          target: x64
+          args: --release -i 3.12 -m src/python/Cargo.toml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-windows-x64-py312
+          path: target/wheels/*.whl
+
+  linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./src/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          target: x86_64
+          args: --release --no-default-features -i 3.12 -m src/python/Cargo.toml
+          before-script-linux: |
+            yum install -y wget
+            wget https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip
+            unzip protoc-25.1-linux-x86_64.zip -d $HOME/protoc
+            mv $HOME/protoc/bin/protoc /usr/local/bin
+            mv $HOME/protoc/include/* /usr/local/include/
+            chmod 755 /usr/local/bin/protoc
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-linux-x64-py312
+          path: target/wheels/*.whl
