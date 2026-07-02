@@ -34,7 +34,11 @@ class DemoParser:
     def list_updated_fields(self) -> List[str]: ...
     def list_game_events(self) -> List[str]: ...
     def parse_grenades(
-        self, *, extra: Optional[Sequence[str]] = None, grenades: bool = True
+        self,
+        *,
+        extra: Optional[Sequence[str]] = None,
+        grenades: bool = True,
+        threads: Optional[int] = None,
     ) -> pd.DataFrame: ...
     def parse_player_info(self) -> pd.DataFrame: ...
     def parse_item_drops(self) -> pd.DataFrame: ...
@@ -45,6 +49,7 @@ class DemoParser:
         *,
         player: Optional[Sequence[str]] = None,
         other: Optional[Sequence[str]] = None,
+        threads: Optional[int] = None,
     ) -> pd.DataFrame: ...
     def parse_events(
         self,
@@ -52,6 +57,7 @@ class DemoParser:
         *,
         player: Optional[Sequence[str]] = None,
         other: Optional[Sequence[str]] = None,
+        threads: Optional[int] = None,
     ) -> List[Tuple[str, pd.DataFrame]]: ...
     def parse_voice(self) -> List[VoiceData]: ...
     def parse_ticks(
@@ -63,6 +69,7 @@ class DemoParser:
         prop_states: Optional[
             Sequence[WantedPropStateProtocol | WantedPropState]
         ] = None,
+        threads: Optional[int] = None,
     ) -> pd.DataFrame:
         """Parse the specified props.
 
@@ -72,6 +79,10 @@ class DemoParser:
                 `None` or an empty Sequence means all players. Defaults to `None`.
             ticks (Optional[Sequence[int]]): Sequence of ticks to parse.
                 `None` or an empty Sequence means all ticks. Defaults to `None`.
+            threads (Optional[int]): Bound this parse to its own rayon pool of N
+                threads, so several demos can be parsed concurrently in one process
+                without oversubscribing the global pool. `None` (default) keeps the
+                stock behavior (shared global pool).
 
         Returns:
             pd.DataFrame: Dataframe of all the parsed props for each player at each tick.

@@ -154,7 +154,7 @@ impl DemoParser {
     }
 
     /// Returns the names of game events present in the demo
-    pub fn list_updated_fields(&self, _py: Python<'_>) -> PyResult<Vec<String>> {
+    pub fn list_updated_fields(&self, py: Python<'_>) -> PyResult<Vec<String>> {
         let settings = ParserInputs {
             real_name_to_og_name: AHashMap::default(),
             wanted_players: vec![],
@@ -173,14 +173,19 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
         Ok(output.uniq_prop_names)
     }
-    pub fn list_game_events(&self, _py: Python<'_>) -> PyResult<Vec<String>> {
+    pub fn list_game_events(&self, py: Python<'_>) -> PyResult<Vec<String>> {
         let settings = ParserInputs {
             real_name_to_og_name: AHashMap::default(),
             wanted_players: vec![],
@@ -199,8 +204,13 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -214,12 +224,13 @@ impl DemoParser {
     /// 0 -388.875  1295.46875 -5120.0   982              NaN    HeGrenade
     /// 1 -388.875  1295.46875 -5120.0   983              NaN    HeGrenade
     /// 2 -388.875  1295.46875 -5120.0   983              NaN    HeGrenade
-    #[pyo3(signature = (*, extra=None, grenades=true))]
+    #[pyo3(signature = (*, extra=None, grenades=true, threads=None))]
     pub fn parse_grenades(
         &self,
         py: Python<'_>,
         extra: Option<Vec<String>>,
         grenades: Option<bool>,
+        threads: Option<usize>,
     ) -> PyResult<Py<PyAny>> {
         // This function works similarly to parse_ticks but collects the props from grenades instead.
         let wanted_other_props = extra.unwrap_or_default();
@@ -251,8 +262,19 @@ impl DemoParser {
             fallback_bytes: None,
         };
 
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse. `threads=Some(n)` runs the
+        // parse in its own bounded rayon pool so several demos can be parsed
+        // concurrently in one process without oversubscribing the global pool.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            match threads {
+                Some(n) if n > 0 => match rayon::ThreadPoolBuilder::new().num_threads(n).build() {
+                    Ok(pool) => pool.install(|| parser.parse_demo(&self.mmap)),
+                    Err(_) => parser.parse_demo(&self.mmap), // pool build failed → global pool
+                },
+                _ => parser.parse_demo(&self.mmap),
+            }
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -348,8 +370,13 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -397,8 +424,13 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -482,8 +514,13 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -538,13 +575,14 @@ impl DemoParser {
         })
     }
 
-    #[pyo3(signature = (event_name, *, player=None, other=None))]
+    #[pyo3(signature = (event_name, *, player=None, other=None, threads=None))]
     pub fn parse_event(
         &self,
         py: Python<'_>,
         event_name: String,
         player: Option<Vec<String>>,
         other: Option<Vec<String>>,
+        threads: Option<usize>,
     ) -> PyResult<Py<PyAny>> {
         let wanted_player_props = player.unwrap_or_default();
         let wanted_other_props = other.unwrap_or_default();
@@ -587,8 +625,19 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse. `threads=Some(n)` runs the
+        // parse in its own bounded rayon pool so several demos can be parsed
+        // concurrently in one process without oversubscribing the global pool.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            match threads {
+                Some(n) if n > 0 => match rayon::ThreadPoolBuilder::new().num_threads(n).build() {
+                    Ok(pool) => pool.install(|| parser.parse_demo(&self.mmap)),
+                    Err(_) => parser.parse_demo(&self.mmap), // pool build failed → global pool
+                },
+                _ => parser.parse_demo(&self.mmap),
+            }
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -599,13 +648,14 @@ impl DemoParser {
         Ok(event_series)
     }
 
-    #[pyo3(signature = (event_name, *, player=None, other=None))]
+    #[pyo3(signature = (event_name, *, player=None, other=None, threads=None))]
     pub fn parse_events(
         &self,
         py: Python<'_>,
         event_name: Vec<String>,
         player: Option<Vec<String>>,
         other: Option<Vec<String>>,
+        threads: Option<usize>,
     ) -> PyResult<Py<PyAny>> {
         let wanted_player_props = player.unwrap_or_default();
         let wanted_other_props = other.unwrap_or_default();
@@ -648,8 +698,19 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse. `threads=Some(n)` runs the
+        // parse in its own bounded rayon pool so several demos can be parsed
+        // concurrently in one process without oversubscribing the global pool.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            match threads {
+                Some(n) if n > 0 => match rayon::ThreadPoolBuilder::new().num_threads(n).build() {
+                    Ok(pool) => pool.install(|| parser.parse_demo(&self.mmap)),
+                    Err(_) => parser.parse_demo(&self.mmap), // pool build failed → global pool
+                },
+                _ => parser.parse_demo(&self.mmap),
+            }
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };
@@ -678,8 +739,13 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse: the heavy work touches no
+        // Python objects, so holding the GIL here only prevents callers from
+        // overlapping e.g. parse_ticks / parse_events / parse_grenades in threads.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            parser.parse_demo(&self.mmap)
+        }) {
             Ok(output) => output,
             Err(e) => return Err(PyValueError::new_err(format!("{e}"))),
         };
@@ -698,7 +764,7 @@ impl DemoParser {
         hm.into_py_any(py)
     }
 
-    #[pyo3(signature = (wanted_props, *, players=None, ticks=None, prop_states=None))]
+    #[pyo3(signature = (wanted_props, *, players=None, ticks=None, prop_states=None, threads=None))]
     pub fn parse_ticks(
         &self,
         py: Python,
@@ -706,6 +772,7 @@ impl DemoParser {
         players: Option<Vec<u64>>,
         ticks: Option<Vec<i32>>,
         prop_states: Option<Vec<WantedPropState>>,
+        threads: Option<usize>,
     ) -> PyResult<Py<PyAny>> {
         let wanted_players = players.unwrap_or_default();
         let wanted_ticks = ticks.unwrap_or_default();
@@ -757,8 +824,19 @@ impl DemoParser {
             order_by_steamid: false,
             fallback_bytes: None,
         };
-        let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
-        let output = match parser.parse_demo(&self.mmap) {
+        // Release the GIL for the pure-Rust demo parse. `threads=Some(n)` runs the
+        // parse in its own bounded rayon pool so several demos can be parsed
+        // concurrently in one process without oversubscribing the global pool.
+        let output = match py.allow_threads(|| {
+            let mut parser = Parser::new(settings, parser::parse_demo::ParsingMode::Normal);
+            match threads {
+                Some(n) if n > 0 => match rayon::ThreadPoolBuilder::new().num_threads(n).build() {
+                    Ok(pool) => pool.install(|| parser.parse_demo(&self.mmap)),
+                    Err(_) => parser.parse_demo(&self.mmap), // pool build failed → global pool
+                },
+                _ => parser.parse_demo(&self.mmap),
+            }
+        }) {
             Ok(output) => output,
             Err(e) => return Err(Exception::new_err(format!("{e}"))),
         };

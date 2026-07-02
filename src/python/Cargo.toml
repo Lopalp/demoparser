@@ -20,6 +20,8 @@ itertools = "0.13.0"
 memmap2 = "0.9.4"
 protobuf-support = "3.3.0"
 
+rayon = "1.7.0"
+
 [dependencies.parser]
 path = "../parser"
 
