@@ -154,7 +154,7 @@ impl DemoParser {
     }
 
     /// Returns the names of game events present in the demo
-    pub fn list_updated_fields(&self, _py: Python<'_>) -> PyResult<Vec<String>> {
+    pub fn list_updated_fields(&self, py: Python<'_>) -> PyResult<Vec<String>> {
         let settings = ParserInputs {
             real_name_to_og_name: AHashMap::default(),
             wanted_players: vec![],
@@ -185,7 +185,7 @@ impl DemoParser {
         };
         Ok(output.uniq_prop_names)
     }
-    pub fn list_game_events(&self, _py: Python<'_>) -> PyResult<Vec<String>> {
+    pub fn list_game_events(&self, py: Python<'_>) -> PyResult<Vec<String>> {
         let settings = ParserInputs {
             real_name_to_og_name: AHashMap::default(),
             wanted_players: vec![],
