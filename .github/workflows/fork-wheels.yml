@@ -56,9 +56,10 @@ jobs:
         with:
           command: build
           target: x86_64
+          manylinux: auto
           args: --release --no-default-features -i 3.12 -m src/python/Cargo.toml
           before-script-linux: |
-            yum install -y wget
+            yum install -y wget unzip || (apt-get update && apt-get install -y wget unzip)
             wget https://github.com/protocolbuffers/protobuf/releases/download/v25.1/protoc-25.1-linux-x86_64.zip
             unzip protoc-25.1-linux-x86_64.zip -d $HOME/protoc
             mv $HOME/protoc/bin/protoc /usr/local/bin
